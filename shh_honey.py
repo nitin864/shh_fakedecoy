@@ -1,4 +1,3 @@
-# libraries
 import logging
 from logging.handlers import RotatingFileHandler
 import socket
@@ -22,7 +21,6 @@ creds_logger.setLevel(logging.INFO)
 creds_handler = RotatingFileHandler('cm_audits.log', maxBytes=200, backupCount=5)
 creds_handler.setFormatter(logging_format)
 creds_logger.addHandler(creds_handler)
- 
 
 
 # emulated shell
@@ -37,13 +35,12 @@ def emulated_shell(channel, client_ip):
             channel.close()
             break
 
-        channel.send(char)  # echo back
+        channel.send(char)
         command += char
 
         if char == b'\r':
             cmd = command.strip()
 
-            #log every command
             funnel_logger.info(f"{client_ip} -> {cmd.decode(errors='ignore')}")
 
             response = b''
@@ -97,7 +94,6 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
             elif cmd == b'help':
                 response = b'\nAvailable commands: ls, pwd, whoami, uname, cat, exit\r\n'
 
-            #capture credential attempts (bonus feature)
             elif b'password' in cmd.lower():
                 creds_logger.info(f"{client_ip} -> {cmd.decode(errors='ignore')}")
                 response = b'\nAccess denied\r\n'
@@ -109,65 +105,63 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
             channel.send(b'corp-virtulbox3$ ')
             command = b""
 
-#shh server + sockets
+
+# ssh server + sockets
 class Server(paramiko.ServerInterface):
 
-    def __init__(self, client_ip, input_username=None, input_password= None):
+    def __init__(self, client_ip, input_username=None, input_password=None):
         self.client_ip = client_ip
-        self,input_username = input_username
+        self.input_username = input_username
         self.input_password = input_password
 
-    def check_channel_request(self, kind:str, chanid: int) -> int;
-      if kind == "session":
-         return paramiko.OPEN_SUCCEEDED
+    def check_channel_request(self, kind: str, chanid: int):
+        if kind == "session":
+            return paramiko.OPEN_SUCCEEDED
 
-    def get_allowed_auth(self):
-        return "password"     
+    def get_allowed_auths(self, username):
+        return "password"
 
     def check_auth_password(self, username, password):
         if self.input_username is not None and self.input_password is not None:
-            if username == 'username' and password === 'password':
-               return paramiko.AUTH_SUCCESSFUL
+            if username == 'username' and password == 'password':
+                return paramiko.AUTH_SUCCESSFUL
             else:
-               return paramiko.AUTH_FAILED
+                return paramiko.AUTH_FAILED
 
     def check_channel_shell_request(self, channel):
-        self.event.set()
         return True
 
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
-         return True   
+        return True
 
     def check_channel_exec_request(self, channel, command):
         command = str(command)
         return True
-    
-    def client_handle(client, addr, username, password):
-        client_ip = addr[0]
-        print(f"{client_ip} has conneccted to  the server.")
+
+
+def client_handle(client, addr, username, password):
+    client_ip = addr[0]
+    print(f"{client_ip} has connected to the server.")
 
     try:
-        transport = paramiko.Transport()
-        transport.local_version = SHH_BANNER
-        server = server(client_ip = client_ip, input_username = username, input_password = password)
+        transport = paramiko.Transport(client)
+        transport.local_version = SSH_BANNER
 
-        transport.add_server_key(host_key)
+        server = Server(client_ip=client_ip, input_username=username, input_password=password)
 
-        transport.start_server(server = server) 
+        transport.add_server_key(paramiko.RSAKey(filename=host_key))
+
+        transport.start_server(server=server)
 
         channel = transport.accept(100)
 
         if channel is None:
-            print("No channel was opened") 
+            print("No channel was opened")
 
         standard_ssh = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5\r\n\r\n"
-        channel.send(standard_ssh)
-        emulated_shell(channel, client_ip = clinet_ip)
+        channel.send(standard_ssh.encode())
+
+        emulated_shell(channel, client_ip=client_ip)
+
     except Exception as error:
         print(error)
-    finally:
-        pass   
-
-#provision SSH-based Hooneypot
-
-
