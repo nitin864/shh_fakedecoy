@@ -119,7 +119,7 @@ class Server(paramiko.ServerInterface):
         return "password"
 
     def check_auth_password(self, username, password):
-        # FIX: use actual input credentials, not hardcoded strings
+ 
         funnel_logger.info(f"{self.client_ip} -> username: {username}  password: {password}")
         creds_logger.info(f"{self.client_ip} -> username: {username}  password: {password}")
         if username == self.input_username and password == self.input_password:

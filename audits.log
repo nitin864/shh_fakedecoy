@@ -6,3 +6,4 @@
 127.0.0.1 -> so do catr
 127.0.0.1 -> sudo  cat
 127.0.0.1 -> ls -ls /etc/passwd
+127.0.0.1 -> whoami
