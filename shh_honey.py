@@ -2,6 +2,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import socket
+import paramiko
 
 # constants
 logging_format = logging.Formatter('%(message)s')
@@ -18,7 +19,7 @@ creds_logger.setLevel(logging.INFO)
 creds_handler = RotatingFileHandler('cm_audits.log', maxBytes=200, backupCount=5)
 creds_handler.setFormatter(logging_format)
 creds_logger.addHandler(creds_handler)
-creds_handler
+ 
 
 
 # emulated shell
@@ -104,3 +105,22 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
             channel.send(response)
             channel.send(b'corp-virtulbox3$ ')
             command = b""
+
+#shh server + sockets
+class Server(paramiko.ServerInterface):
+
+    def __init__(self, client_ip, input_username=None, input_password= None):
+        self.client_ip = client_ip
+        self,input_username = input_username
+        self.input_password = input_password
+
+    def check_channel_request(self, kind:str, chanid: int) -> int;
+      if kind == "session":
+         return paramiko.OPEN_SUCCEEDED
+
+    def get_allowed_auth(self):
+        return "password"     
+
+    def check_auth_password(self, username, password):
+         if self.input_username is not None and self.input_password is not None:
+                
