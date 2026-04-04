@@ -9,7 +9,8 @@ import threading
 logging_format = logging.Formatter('%(message)s')
 SSH_BANNER  = "SSH-2.0-OpenSSH_8.9p1 RedHat-1.el9"
 
-host_key = "server.key"
+#host_key = "server.key"
+host_key = paramiko.RSAKey(filename = 'server.key')
 
 # Loggers
 funnel_logger = logging.getLogger("FunnelLogger")
@@ -181,8 +182,11 @@ def client_handle(client, addr, username, password):
 def honeypot(address, port, username, password):
        
     socks = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socks.setsockopt(socket.SOL_SOCKE, socket.SO_REUSEADDR, 1)
-    socks.bind((address, port))
+    socks.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    socks.bind((address, port)) 
+    socks.listen(100)
+
+    client, add = socks.accept()
 
     print(f"SSH Server is listeninig on port {port}. ")
 
@@ -190,6 +194,8 @@ def honeypot(address, port, username, password):
         try:
             client, addr = socket.accept()
             ssh_honeypot_thread = threading.Thread(target=client_handle , args=(client , addr , username , password))
-            ssh_honeypot_thread.start( )            
+            ssh_honeypot_thread.start()            
         except Exception as error:
             print(error)
+
+honeypot('127.0.0.1' , 2222 , 'username', 'password')
