@@ -2,6 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import socket
 import paramiko
+import socket
 
 # constants
 logging_format = logging.Formatter('%(message)s')
@@ -165,3 +166,17 @@ def client_handle(client, addr, username, password):
 
     except Exception as error:
         print(error)
+
+    finally:
+        try:
+            transport.close()
+        except Exception as error:
+            print(error) 
+        client.close()     
+
+#provision SSH-based Honeypot
+
+def honeypot(address, port, username, password):
+       
+    socks = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    socks.setsockopt(socket.SOL_SOCKE, socket.SO_REUSEADDR, 1)
