@@ -122,5 +122,8 @@ class Server(paramiko.ServerInterface):
         return "password"     
 
     def check_auth_password(self, username, password):
-         if self.input_username is not None and self.input_password is not None:
-                
+        if self.input_username is not None and self.input_password is not None:
+            if username == 'username' and password === 'password':
+               return paramiko.AUTH_SUCCESSFUL
+            else:
+               return paramiko.AUTH_FAILED
