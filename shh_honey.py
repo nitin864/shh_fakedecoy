@@ -2,26 +2,24 @@ import logging
 from logging.handlers import RotatingFileHandler
 import socket
 import paramiko
-import socket
 import threading
 
 # constants
 logging_format = logging.Formatter('%(message)s')
-SSH_BANNER  = "SSH-2.0-OpenSSH_8.9p1 RedHat-1.el9"
+SSH_BANNER = "SSH-2.0-OpenSSH_8.9p1 RedHat-1.el9"
 
-#host_key = "server.key"
-host_key = paramiko.RSAKey(filename = 'server.key')
+host_key = paramiko.RSAKey(filename='server.key')
 
 # Loggers
 funnel_logger = logging.getLogger("FunnelLogger")
 funnel_logger.setLevel(logging.INFO)
-funnel_handler = RotatingFileHandler('audits.log', maxBytes=200, backupCount=5)
+funnel_handler = RotatingFileHandler('audits.log', maxBytes=2000, backupCount=5)
 funnel_handler.setFormatter(logging_format)
 funnel_logger.addHandler(funnel_handler)
 
 creds_logger = logging.getLogger("CredsLogger")
 creds_logger.setLevel(logging.INFO)
-creds_handler = RotatingFileHandler('cm_audits.log', maxBytes=200, backupCount=5)
+creds_handler = RotatingFileHandler('cm_audits.log', maxBytes=2000, backupCount=5)
 creds_handler.setFormatter(logging_format)
 creds_logger.addHandler(creds_handler)
 
@@ -43,7 +41,6 @@ def emulated_shell(channel, client_ip):
 
         if char == b'\r':
             cmd = command.strip()
-
             funnel_logger.info(f"{client_ip} -> {cmd.decode(errors='ignore')}")
 
             response = b''
@@ -70,11 +67,7 @@ def emulated_shell(channel, client_ip):
                 response = b'\nuid=1000(admin) gid=1000(admin) groups=1000(admin)\r\n'
 
             elif cmd == b'cat /etc/passwd':
-                response = b""" 
-root:x:0:0:root:/root:/bin/bash
-admin:x:1000:1000:admin:/home/admin:/bin/bash
-www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
-"""
+                response = b'\nroot:x:0:0:root:/root:/bin/bash\nadmin:x:1000:1000:admin:/home/admin:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\r\n'
 
             elif cmd == b'ls /root':
                 response = b'\n.secrets  backup.sh\r\n'
@@ -109,7 +102,7 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
             command = b""
 
 
-# ssh server + sockets
+# SSH Server class
 class Server(paramiko.ServerInterface):
 
     def __init__(self, client_ip, input_username=None, input_password=None):
@@ -126,11 +119,12 @@ class Server(paramiko.ServerInterface):
         return "password"
 
     def check_auth_password(self, username, password):
-        if self.input_username is not None and self.input_password is not None:
-            if username == 'username' and password == 'password':
-                return paramiko.AUTH_SUCCESSFUL
-            else:
-                return paramiko.AUTH_FAILED
+        # FIX: use actual input credentials, not hardcoded strings
+        funnel_logger.info(f"{self.client_ip} -> username: {username}  password: {password}")
+        creds_logger.info(f"{self.client_ip} -> username: {username}  password: {password}")
+        if username == self.input_username and password == self.input_password:
+            return paramiko.AUTH_SUCCESSFUL
+        return paramiko.AUTH_FAILED
 
     def check_channel_shell_request(self, channel):
         return True
@@ -153,49 +147,50 @@ def client_handle(client, addr, username, password):
 
         server = Server(client_ip=client_ip, input_username=username, input_password=password)
 
-        transport.add_server_key(paramiko.RSAKey(filename=host_key))
+        # FIX: host_key is already an RSAKey object, don't wrap it again
+        transport.add_server_key(host_key)
 
         transport.start_server(server=server)
 
         channel = transport.accept(100)
 
         if channel is None:
-            print("No channel was opened")
+            print("No channel was opened.")
+            return
 
-        standard_ssh = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5\r\n\r\n"
-        channel.send(standard_ssh.encode())
-
+        channel.send(b"Welcome to corp-virtulbox3\r\n\r\n")
         emulated_shell(channel, client_ip=client_ip)
 
     except Exception as error:
-        print(error)
+        print(f"Client handle error: {error}")
 
     finally:
         try:
             transport.close()
         except Exception as error:
-            print(error) 
-        client.close()     
+            print(error)
+        client.close()
 
-#provision SSH-based Honeypot
 
 def honeypot(address, port, username, password):
-       
     socks = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socks.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    socks.bind((address, port)) 
+    socks.bind((address, port))
     socks.listen(100)
 
-    client, add = socks.accept()
-
-    print(f"SSH Server is listeninig on port {port}. ")
+    # FIX: print AFTER listen, not inside the loop
+    print(f"SSH Honeypot listening on {address}:{port}")
 
     while True:
         try:
-            client, addr = socket.accept()
-            ssh_honeypot_thread = threading.Thread(target=client_handle , args=(client , addr , username , password))
-            ssh_honeypot_thread.start()            
+            # FIX: socks.accept() not socket.accept()
+            client, addr = socks.accept()
+            ssh_honeypot_thread = threading.Thread(
+                target=client_handle, args=(client, addr, username, password)
+            )
+            ssh_honeypot_thread.start()
         except Exception as error:
-            print(error)
+            print(f"Honeypot error: {error}")
 
-honeypot('127.0.0.1' , 2222 , 'username', 'password')
+
+honeypot('0.0.0.0', 2222, 'username', 'password')
