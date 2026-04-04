@@ -127,3 +127,29 @@ class Server(paramiko.ServerInterface):
                return paramiko.AUTH_SUCCESSFUL
             else:
                return paramiko.AUTH_FAILED
+
+    def check_channel_shell_request(self, channel):
+        self.event.set()
+        return True
+
+    def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
+         return True   
+
+    def check_channel_exec_request(self, channel, command):
+        command = str(command)
+        return True
+    
+    def client_handle(client, addr, username, password):
+        client_ip = addr[0]
+        print(f"{client_ip} has conneccted to  the server.")
+
+    try:
+        pass
+    except:
+        pass
+    finally:
+        pass   
+
+#provision SSH-based Hooneypot
+
+
