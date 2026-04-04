@@ -18,6 +18,7 @@ creds_logger.setLevel(logging.INFO)
 creds_handler = RotatingFileHandler('cm_audits.log', maxBytes=200, backupCount=5)
 creds_handler.setFormatter(logging_format)
 creds_logger.addHandler(creds_handler)
+creds_handler
 
 
 # emulated shell
