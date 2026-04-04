@@ -3,6 +3,7 @@ from logging.handlers import RotatingFileHandler
 import socket
 import paramiko
 import socket
+import threading
 
 # constants
 logging_format = logging.Formatter('%(message)s')
@@ -111,6 +112,7 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
 class Server(paramiko.ServerInterface):
 
     def __init__(self, client_ip, input_username=None, input_password=None):
+        self.event = threading.Event()
         self.client_ip = client_ip
         self.input_username = input_username
         self.input_password = input_password
@@ -180,3 +182,14 @@ def honeypot(address, port, username, password):
        
     socks = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     socks.setsockopt(socket.SOL_SOCKE, socket.SO_REUSEADDR, 1)
+    socks.bind((address, port))
+
+    print(f"SSH Server is listeninig on port {port}. ")
+
+    while True:
+        try:
+            client, addr = socket.accept()
+            ssh_honeypot_thread = threading.Thread(target=client_handle , args=(client , addr , username , password))
+            ssh_honeypot_thread.start( )            
+        except Exception as error:
+            print(error)
