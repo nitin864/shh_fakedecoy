@@ -6,6 +6,9 @@ import paramiko
 
 # constants
 logging_format = logging.Formatter('%(message)s')
+SSH_BANNER  = "SSH-2.0-OpenSSH_8.9p1 RedHat-1.el9"
+
+host_key = "server.key"
 
 # Loggers
 funnel_logger = logging.getLogger("FunnelLogger")
@@ -144,9 +147,24 @@ class Server(paramiko.ServerInterface):
         print(f"{client_ip} has conneccted to  the server.")
 
     try:
-        pass
-    except:
-        pass
+        transport = paramiko.Transport()
+        transport.local_version = SHH_BANNER
+        server = server(client_ip = client_ip, input_username = username, input_password = password)
+
+        transport.add_server_key(host_key)
+
+        transport.start_server(server = server) 
+
+        channel = transport.accept(100)
+
+        if channel is None:
+            print("No channel was opened") 
+
+        standard_ssh = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5\r\n\r\n"
+        channel.send(standard_ssh)
+        emulated_shell(channel, client_ip = clinet_ip)
+    except Exception as error:
+        print(error)
     finally:
         pass   
 
