@@ -7,3 +7,4 @@
 127.0.0.1 -> sudo  cat
 127.0.0.1 -> ls -ls /etc/passwd
 127.0.0.1 -> whoami
+127.0.0.1 -> whom,ai
